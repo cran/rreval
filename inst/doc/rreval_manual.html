@@ -1,0 +1,421 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="Content-Type">
+  <title>Remote R Evaluation (rreval) Manual</title>
+  <meta content="Barnet Wagman" name="author">
+  <link rel="stylesheet" href="rreval.css">
+</head>
+<body>
+<div id="content">
+<h2 style="text-align: center;">Remote R Evaluation (rreval) Manual<br>
+</h2>
+<h4 style="text-align: center;">March 2012, Version 1.0<br>
+</h4>
+<h4 style="text-align: center;">Barnet Wagman <a
+ href="mailto:bw@norble.com">bw@norbl.com</a></h4>
+<br>
+<div style="text-align: justify;"><span style="font-style: italic;">rreval</span>
+is a means for using R on a
+remote system from within a local R session.&nbsp; Any R expression can
+be evaluated on the remote server. All non-graphical results are
+returned to the local R session: this includes the results of remote
+evaluations and (nearly) all textual output, including errors and
+warnings.&nbsp; <br>
+<span style="font-style: italic;"><br>
+</span>Communication is via ssh
+port forwarding, so the system is reasonably secure. <span
+ style="font-style: italic;">rreval </span>supports uploading and
+downloading R objects and
+scp file tranfers.<br>
+<br>
+Expressions are evaluated by an R session on a remote system running
+the rreval server. When a local R session conne<span
+ style="font-style: italic;"><span style="font-style: italic;"><span
+ style="font-style: italic;"><span style="font-style: italic;"></span></span></span></span>cts
+to
+a
+server,
+the local client has exclusive use of the remote R session
+until it disconnects; i.e. an R server handles only one client at a
+time.<br>
+<span style="font-style: italic;"></span><br>
+This manual describes how to configure and use <span
+ style="font-style: italic;">rreval</span> as a standalone
+package.&nbsp; <span style="font-style: italic;">rreval </span>is
+also used by the <span style="font-style: italic;">cloudRmpi</span>
+package.&nbsp; If you are using it in that context, please refer to the
+<span style="font-style: italic;">cloudRmpi </span>manual, rather than
+this document.&nbsp; Creating the RSA key pair is different and
+configuring <span style="font-style: italic;">rreval</span> for use
+with <span style="font-style: italic;">cloudRmpi</span> is simpler
+than setting it up for standalone use.<br>
+<br>
+<hr style="width: 100%; height: 2px;"><br>
+<span style="font-weight: bold;">Contents</span><br>
+<ol>
+  <li><a href="#Requirements">Requirements</a></li>
+  <li><a href="#Installation">Installation</a></li>
+  <li><a href="#SSH_configuration">SSH configuration</a></li>
+  <li><a href="#Launching_the_rreval_server">Launching the rreval server</a></li>
+  <li style="font-weight: bold;"><a href="#Using_rreval">Using rreval</a></li>
+  <li><a href="#Architecture">Architecture</a></li>
+</ol>
+<hr style="width: 100%; height: 2px;">
+<h3><br>
+</h3>
+<h3><a name="Requirements"></a>Requirements</h3>
+<span style="font-style: italic;">rreval</span> has two requirements
+besides the contents of the R package:<br>
+<ol>
+  <li>Java (&gt;= 1.6), on the client and server systems. The Java
+interpreter must be in the execution path.&nbsp; To test whether you
+have an accessible copy of Java, at a command line type<br>
+    <div style="margin-left: 40px;"> <br>
+    <span style="font-family: monospace;">java -version</span><br>
+    </div>
+    <br>
+If Java is installed, you should get something like<br>
+    <div style="margin-left: 40px;"><br>
+    <span style="font-family: monospace;">java version "1.6.0_26"</span><br
+ style="font-family: monospace;">
+    <span style="font-family: monospace;">Java(TM) SE Runtime
+Environment (build 1.6.0_26-b03)</span><br
+ style="font-family: monospace;">
+    <span style="font-family: monospace;">Java HotSpot(TM) 64-Bit
+Server VM (build 20.1-b02, mixed mode)</span><br>
+    <br>
+    </div>
+(Why Java? See the <span style="font-style: italic;"><a
+ href="#Architecture">Architecture</a> </span>section
+below.)<br>
+    <br>
+  </li>
+  <li>ssh daemon on the server side only. (An ssh client is not
+needed).&nbsp;</li>
+</ol>
+<h3><br>
+</h3>
+<h3><a name="Installation"></a>Installation<br>
+</h3>
+The <span style="font-style: italic;">rreval</span> package needs to
+be installed into R on both the client and server, using the standard
+installation method (<span style="font-family: monospace;">R CMD
+INSTALL ..</span>. from the shell or <span
+ style="font-family: monospace;">install.packages(...)</span> in an R
+session).<br>
+<br>
+<br>
+<br>
+<h3><a name="SSH_configuration"></a>SSH configuration</h3>
+To keep things reasonably secure, the rreval client and server
+communicate via ssh port forwarding.&nbsp; The client logs into the
+server system using an RSA key pair (rather than a password).&nbsp; <br>
+<h4 style="text-decoration: underline;">Server configuration</h4>
+The server must be running an ssh daemon and it must be configured to
+allow RSA key pair login. This is usually the default on Linux
+systems.&nbsp; To enable RSA key pair login, the ssh daemon
+configuration file <span style="font-family: monospace;">/etc/ssh/sshd_config</span>
+should contain (uncommented) the lines<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">RSAAuthentication
+yes</span><br style="font-family: monospace;">
+<span style="font-family: monospace;">PubkeyAuthentication yes</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">AuthorizedKeysFile&nbsp;&nbsp;&nbsp;
+%h/.ssh/authorized_keys</span><br>
+</div>
+<br>
+On some systems, you may also need to add <br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">StrictModes
+no</span><br>
+</div>
+<h4><span style="text-decoration: underline;">RSA Key Pair</span><br>
+</h4>
+For RSA key pair login, you'll need an RSA key pair on the client and
+the public key registered on the server.<br>
+<br>
+<span style="text-decoration: underline;">On the client side:</span><br>
+<br>
+<div style="margin-left: 40px;">If you don't already have one, create
+an RSA key pair.&nbsp; On Unix system, you can do this with<br>
+</div>
+<pre style="margin-left: 80px;">ssh-keygen -t rsa -f &lt;output_filename&gt; -P ''</pre>
+<div style="margin-left: 40px;">This command creates two files: <span
+ style="font-family: monospace;">&lt;output_filename&gt;</span> which
+contains the key pair and <span style="font-family: monospace;">&lt;output_filename&gt;.pub</span>
+which contains the public key.&nbsp; You will need to supply the full
+pathname of <span style="font-family: monospace;">&lt;output_filename&gt;</span>
+as an argument to the <span style="font-family: monospace;">rre.startClient()</span>
+function when you connect to the server (see <span
+ style="font-style: italic;">Using rreval</span> below).<br>
+</div>
+<br>
+<span style="text-decoration: underline;">On the server side:</span><br>
+<br>
+<div style="margin-left: 40px;">Copy the <span
+ style="font-style: italic;">public</span> key file to the
+server.&nbsp; Append it to the <span style="font-family: monospace;">authorized_keys</span>
+file in the <span style="font-family: monospace;">.ssh</span>
+directory of the account where you'll be running the rreval
+server.&nbsp; E.g. for a user 'some-user' and an RSA public key file <span
+ style="font-family: monospace;">an_rsa_file.pub</span><br>
+</div>
+<br>
+<div style="margin-left: 80px;"><span style="font-family: monospace;">cat
+an_rsa_file.pub
+&gt;&gt;
+~some-user/.ssh/authorized_keys</span><br>
+</div>
+<br>
+<div style="margin-left: 40px;">Note that ssh is very finicky about
+file permissions. The <span style="font-family: monospace;">.ssh</span>
+directory and <span style="font-family: monospace;">authorized_keys</span>
+file must be accessible to the user only (modes 0700 and 0600
+respectively on Unix systems).<br>
+</div>
+<br>
+<br>
+<h3><a name="Launching_the_rreval_server"></a>Launching the rreval
+server<br>
+</h3>
+The rreval server must be running before you start the client.&nbsp; On
+the server, launch the rreval server from the command line with<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">echo
+'library(rreval);
+rreServer(workingDir="some-dir")'
+|
+R --no-save
+--no-restore --slave</span><br>
+</div>
+<br>
+or from within an R session with <br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">library(rreval);</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">rreServer(workingDir="some-dir")</span><br>
+</div>
+<h3><br>
+</h3>
+<h3><a name="Using_rreval"></a>Using rreval</h3>
+On the client<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">library(rreval)</span><br>
+</div>
+<br>
+To connect to a running server<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">rre.startClient(hostName="the-host-name",userName="the-user-name",pemFile="/full/path/to/rsa/file")</span><br>
+</div>
+<br>
+where the host and user names correspond to the system and user account
+where the rreval<span style="font-style: italic;"> </span>server is
+running. <span style="font-style: italic;">pemFile</span> is the full
+path to the RSA key pair file (see above). Note that&nbsp; this must be
+the path to the key pair file, <span style="font-style: italic;">not</span>
+the public key file.<br>
+<br>
+Once you're connected, you can evaluate expressions. E.g.<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">re(1+1)</span><br>
+</div>
+<br>
+will return the value 2.&nbsp; An expression like <br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">re(a
+&lt;-
+seq(1,100)^2)</span><br>
+</div>
+<br>
+will create an object named 'a' in the remote R session <span
+ style="font-style: italic;">and</span> return the value of the
+expression.<br>
+<br>
+To retrieve an expression from the remote session<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">re(a)</span><br>
+</div>
+<br>
+or to assign it locally<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">aa
+&lt;-
+re(a)</span><br>
+</div>
+<br>
+To upload an object<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">z
+&lt;- sin(pi)</span><br style="font-family: monospace;">
+<span style="font-family: monospace;">upo(z)</span><br>
+</div>
+<br>
+You can evaluate any expression in the remote session, including things
+like<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">re(library(npRmpi))</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">re(ls())</span><br>
+</div>
+<br>
+It is perfectly acceptable to upload functions, e.g.<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">fn
+&lt;-
+function(x)
+{
+quantile(x,seq(0,1,0.1)) }</span><br style="font-family: monospace;">
+<span style="font-family: monospace;">upo(fn)</span><br>
+</div>
+<br>
+<span style="font-style: italic;">rreval </span>will handle errors
+gracefully, e.g.<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">re(lss())</span><br>
+</div>
+<br>
+yields the error message<br>
+<br>
+<div style="margin-left: 40px;"><span class="Apple-style-span"
+ style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Arial; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; font-size: medium;"><span
+ class="Apple-style-span"
+ style="font-family: Monospace; font-size: 13px; line-height: 17px; white-space: pre-wrap;">
+<pre tabindex="0" class="GD40030CLR"
+ style="border-style: none; margin: 0px; font-family: Monospace; font-size: 10pt ! important; outline-style: none; white-space: pre-wrap ! important; line-height: 1.3;">&lt;simpleError in eval(expr, envir, enclos): could not find function "lss"&gt;</pre>
+</span></span></div>
+<br>
+Note that all expression evaluations and assignments in the remote R
+session are performed in <span style="font-family: monospace;">.GlobalEnv</span>
+(the top level of the scope hierarchy).&nbsp; Of course you can
+explicitly specify other environments (e.g. <span
+ style="font-family: monospace;">re(assign(x="a",value=1234,envir=some.other.envir))</span>).<br>
+<span style="font-weight: bold;"></span><br>
+When you are finished using the remote session, disconnect with<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">rre.closeClient()</span><br
+ style="font-family: monospace;">
+</div>
+<br>
+The server handles only one client at time.&nbsp; This will free it up
+to handle another client.&nbsp; <span style="font-style: italic;">Warning:
+</span>any objects that you created in the remote session will still
+exist after you disconnect, unless you explicitly delete then before
+you disconnect.<br>
+<br>
+<span style="text-decoration: underline; font-weight: bold;">Handling
+large objects</span><br>
+<br>
+The remote evaluation function <span style="font-family: monospace;">re()</span>
+always returns the results of evaluations, even if an assignment is
+made in the remote session. E.g. <span style="font-family: monospace;">re(a
+&lt;-
+seq(1,10^6))</span> will return the sequence as well as assign
+it&nbsp; in the remote session.&nbsp; For large object, this can take a
+long time, so by default <span style="font-family: monospace;">re() </span>only
+returns
+the
+result
+of an evaluation if its serialized size is less than
+the value of <span style="font-family: monospace;">re()</span>'s <span
+ style="font-family: monospace;">maxBytesReturnable </span>argument,
+which can be set to any value in [0,Inf].<br>
+<br>
+To move large objects, <span style="font-style: italic;">rreval</span>
+supports scp file transfers.&nbsp; E.g. for some funtion <span
+ style="font-family: monospace;">fn() </span><br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">re(z
+&lt;-
+fn(),maxBytesReturnable</span><span class="Apple-style-span"
+ style="border-collapse: separate; color: rgb(0, 0, 0); font-family: monospace; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; font-size: medium;"><span
+ class="Apple-style-span"
+ style="font-family: Monospace; font-size: 13px; line-height: 17px; white-space: pre-wrap;"></span></span><span
+ style="font-family: monospace;">=0)</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">re(save(z,file="z_file.save"))</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">scpDownload("z_file.save");</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">load("z_file.save")</span><br>
+</div>
+<span style="font-family: monospace;"></span><br>
+will get object <span style="font-family: monospace;">z</span> into
+the local R session.<br>
+<br>
+<span style="font-style: italic;">rreval</span> moves objects between
+the client and server in serialized form (using <span
+ style="font-family: monospace;">serialize(ascii=TRUE,...)</span>). <span
+ style="font-family: monospace;">serialize()</span> has a maximum
+object size of 2^31 - 1 bytes. R objects can exceed this size.&nbsp;
+Furthermore, the serialized version of an object is larger than the
+object it represents.&nbsp; The rreval functions <span
+ style="font-family: monospace;">scpUpload() </span>and <span
+ style="font-family: monospace;">scpDownload() </span>are used of
+circumvent this limitation.&nbsp; Note that for a large object, scp
+tranfers are faster than transfer mechanism used by <span
+ style="font-family: monospace;">re()</span> and <span
+ style="font-family: monospace;">upo()</span>.<span
+ style="font-style: italic;"></span><br>
+<br>
+<br>
+<span style="font-weight: bold; text-decoration: underline;">Using
+multiple servers</span><br>
+<br>
+It is possible to have open connections to more than one rreval server
+in a given local session.&nbsp; E.g. if there are rreval servers
+running on <span style="font-family: monospace;">user1@host1</span>
+and <span style="font-family: monospace;">user2@host2</span> you can
+connect to both:<br>
+&nbsp;<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">rre.startClient(hostName="host1",userName="user1",pemFile="/path/to/pem")</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">rre.startClient(hostName="host2",userName="user2",pemFile="/path/to/pem")</span><br>
+</div>
+<br>
+With multiple connections open, you need to specify the
+(hostName,userName) pair in evaluation, object upload and scp
+functions.&nbsp; E.g.<br>
+<br>
+<div style="margin-left: 40px;"><span style="font-family: monospace;">re(a
+&lt;-
+2^4,hostName="host1",userName="user1")</span><br>
+<br style="font-family: monospace;">
+<span style="font-family: monospace;">upo(z,hostName="host2",userName="user2")</span><br>
+</div>
+<br>
+<br>
+<br>
+<h3><a name="Architecture"></a>Architecture</h3>
+Communication between the client and server is performed by a pair
+of&nbsp; java apps, <span style="font-family: monospace;">rreval.RReClientApp</span><span
+ style="font-family: monospace;"> </span>and <span
+ style="font-family: monospace;">rreval.RReServerApp. </span>The local
+R session sends a command to the <span style="font-family: monospace;">rreval.RReClientApp.&nbsp;
+</span>After performing error checks, the command is sent to <span
+ style="font-family: monospace;">rreval.RReServerApp</span> which runs
+on the remote system. It in turn passes the command to the rreval
+server.&nbsp; The results of evaluation are returned by this path in
+reverse.<br>
+<br>
+The two java apps communicate via ssh port forwarding, so communication
+between them should be secure.&nbsp; Note that communications between
+an R session and a java app are <span style="font-style: italic;">en
+clair.</span>&nbsp; These are local socket communications so security
+should not an issue.<br>
+<br>
+Since R does not support java directly, the use of java apps may seem a
+somewhat odd choice.&nbsp; While <span style="font-style: italic;">rreval</span>
+is a self-contained package, it was primarily developed to support the <span
+ style="font-style: italic;">cloudRmpi</span> package, which is a means
+of doing R parallel processing on a network of Amazon ec2
+instances.&nbsp; Managing an ec2 network is best done in java (Amazon
+does not provide a C or C++ api), so for consistency java was used in <span
+ style="font-style: italic;">rreval </span>as well.<br>
+<br>
+</div>
+</div>
+</body>
+</html>

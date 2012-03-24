@@ -1,0 +1,26 @@
+#content {
+	background-color: white;  
+  	border: 20px solid white;
+	margin-left: 5%;
+  	margin-right: 5%;
+  	font-family: serif;
+	text-align:justify;
+}
+
+/* Link formats */
+
+a:link {
+	color: #036;	
+  	text-decoration: none;
+}
+
+a:hover {
+  color: #F00;
+  text-decoration: none;
+  background-color: #FFC;
+}
+
+a:visited {
+  	color: #036;	
+	text-decoration: none;
+}
