@@ -30,11 +30,14 @@
 #    ----------------------------------------------------------------------
 
 
-H=/home/ec2-user
-OM=$H/openmpi
-RB=$H/R-2.14.1/bin
 
-PATH=$OM/bin:$RB:$PATH
+H=/home/ec2-user
+A=/home/apps
+OM=$A/openmpi
+
+# The r executable is in /usr/local/bin.  This boot script 
+# inherits the root's PATH, which by default does not contain it.
+PATH=$OM/bin:$PATH:/usr/local/bin
 export PATH
 
 LD_LIBRARY_PATH=$OM/lib
@@ -51,5 +54,8 @@ OMPI_MCA_orte_default_hostfile=$H/ompi-hostfile
 export OMPI_MCA_orte_default_hostfile
 
 
-echo 'library(rreval); rreServer(workingDir="ec2-user")' | R --no-save --no-restore --slave
+echo 'library(rreval); rreServer(workingDir="/home/ec2-user")' | R --no-save --no-restore --slave &
+
+
+
 

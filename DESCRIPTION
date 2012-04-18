@@ -1,8 +1,8 @@
 Package: rreval
 Type: Package
 Title: Remote R Evaluator (rreval)
-Version: 1.0
-Date: 2012-03-24
+Version: 1.1
+Date: 2012-04-18
 Author: Barnet Wagman
 Maintainer: Barnet Wagman <bw@norbl.com>
 Description: rreval is a means for using R on a remote system from
@@ -17,9 +17,9 @@ License: GPL-3
 Depends: R (>= 2.14.1), digest
 SystemRequirements: Java (>=1.6), ssh daemon on the server side only:
         see the rreval manual (vignette) for details.
-URL: http://norbl.com/rreval.html
-Collate: 'rreval-package.R' 'MessageNio.R' 'RcsIO.R' 'RReClient.R'
-        'RReServer.R'
-Packaged: 2012-03-19 17:35:13 UTC; moi
+URL: http://norbl.com/rreval/rreval.html
+Collate: 'MessageNio.R' 'RcsIO.R' 'RReClient.R' 'RReServer.R'
+        'rreval-package.R'
+Packaged: 2012-04-23 18:02:40 UTC; moi
 Repository: CRAN
-Date/Publication: 2012-03-20 14:38:40
+Date/Publication: 2012-04-24 03:59:56

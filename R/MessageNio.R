@@ -409,7 +409,7 @@ verboseOn <- function () {
   }  
 }
 
-#' getRRevalJavaAppClassPath
+#' getJavaAppClassPath.v0
 #' This function gets the names of all jars in the 'jars' directory 
 #' of the specified package
 #' @param packageName
@@ -417,7 +417,8 @@ verboseOn <- function () {
 #' @export
 #' @author Barnet Wagman
 #' @return Java classpath as character.
-getJavaAppClassPath <- function(packageName) {
+getJavaAppClassPath.v0 <- function(packageName) {
+  # v0 is obsolete. It does NOT work with Windows.
   # TEST ONLY  
   #return(paste("/home/moi/h/ppe/projects/rreval_201202/dist/rreval_201202.jar",
   #             "/home/moi/h/ppe/foreign/ganymed-ssh2-build251beta1/ganymed-ssh2-build251beta1.jar",
@@ -436,6 +437,25 @@ getJavaAppClassPath <- function(packageName) {
     if ( i < length(jarNames) ) cp <- paste(cp,":",sep="");
   }
   cp
+}
+
+#' getJavaAppClassPath
+#' This function creates an expression that java will expand to
+#' a list of all jar in the package 'jars' directory.
+#' quotes.
+#' @param packageName
+#' @keywords internal
+#' @export
+#' @author Barnet Wagman
+#' @return Java classpath as character.
+getJavaAppClassPath <- function(packageName,quoted=TRUE) {
+  
+  pkPath <- .find.package(packageName);
+  cp <- paste(pkPath,"/jars/*",sep="");
+  if ( .Platform$OS == "windows" )
+    cp <- gsub("/","\\\\",cp);
+  if ( quoted ) paste("\"",cp,"\"",sep="")
+  else cp
 }
 
 
